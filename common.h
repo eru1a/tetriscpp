@@ -15,3 +15,8 @@ const int HEIGHT = GS * ROW;
 void sdl_error(const std::string &msg);
 /// TTF_GetError()を表示してプログラム終了
 void ttf_error(const std::string &msg);
+
+struct Texture {
+    SDL_Texture *texture;
+    int w, h;
+};

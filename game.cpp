@@ -3,6 +3,17 @@
 #include <cstdlib>
 #include <ctime>
 
+Texture Game::make_texture(const std::string &text, SDL_Color color) {
+    SDL_Surface *surface = TTF_RenderText_Solid(m_font, text.c_str(), color);
+    if (surface == nullptr)
+        ttf_error("start_surfaceの作成に失敗");
+    Texture texture = {SDL_CreateTextureFromSurface(m_renderer, surface), surface->w, surface->h};
+    if (texture.texture == nullptr)
+        sdl_error("textureの作成に失敗");
+    SDL_FreeSurface(surface);
+    return texture;
+}
+
 Game::Game() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_error("SDLの初期化に失敗");
@@ -19,14 +30,23 @@ Game::Game() {
     if (m_renderer == nullptr)
         sdl_error("レンダラの初期化に失敗");
 
+    m_font = TTF_OpenFont("data/roboto-android/Roboto-Black.ttf", 30);
+    if (m_font == nullptr)
+        ttf_error("TTF_OpenFontに失敗");
+
+    m_state = State::Start;
+
+    m_start_texture = make_texture("Press any key to start", {0, 0, 255, 255});
+    m_gameover_texture = make_texture("GAME OVER", {255, 0, 0, 255});
+
     srand(time(nullptr));
 }
 
 Game::~Game() {
+    TTF_CloseFont(m_font);
+    SDL_DestroyTexture(m_start_texture.texture);
     SDL_DestroyRenderer(m_renderer);
     SDL_DestroyWindow(m_window);
-    m_renderer = nullptr;
-    m_window = nullptr;
 
     TTF_Quit();
     SDL_Quit();
@@ -59,36 +79,44 @@ void Game::run() {
         draw();
 
         SDL_RenderPresent(m_renderer);
-
-        m_frame++;
-        m_frame %= 24;
     }
 }
 
-void Game::new_tetrimino() {
-    delete_lines();
-    TetriminoType type = static_cast<TetriminoType>(rand() % 7);
-    m_current = Tetrimino{4, 0, 0, type};
+bool Game::check_gameover() const {
+    if (!m_current)
+        return false;
     auto tetrimino = m_current.value();
     auto blocks = tetrimino.get_blocks();
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
             if (!blocks.at(y).at(x))
                 continue;
-            int nx = tetrimino.x + x;
-            int ny = tetrimino.y + y;
+            int nx = start_x + x;
+            int ny = start_y + y;
             if (m_board.at(ny).at(nx)) {
-                m_state = State::GameOver;
-                return;
+                return true;
             }
         }
     }
+    return false;
+}
+
+void Game::new_tetrimino() {
+    TetriminoType type = static_cast<TetriminoType>(rand() % 7);
+    m_current = Tetrimino{start_x, start_y, 0, type};
+}
+
+void Game::put() {
+    set_tetrimino();
+    delete_lines();
+    new_tetrimino();
+    if (check_gameover())
+        m_state = State::GameOver;
 }
 
 void Game::down() {
     if (!move(0, 1)) {
-        set_tetrimino();
-        new_tetrimino();
+        put();
     }
 }
 
@@ -105,8 +133,7 @@ int Game::limit_y() const {
 void Game::drop() {
     assert(m_current);
     m_current.value().y = limit_y();
-    set_tetrimino();
-    new_tetrimino();
+    put();
 }
 
 void Game::set_tetrimino() {
@@ -146,17 +173,51 @@ bool Game::move(int x, int y) {
 }
 
 void Game::update() {
-    if (m_state == State::GameOver)
-        return;
+    switch (m_state) {
+    case State::Play:
+        update_play();
+        break;
+    default:
+        break;
+    }
+}
+
+void Game::update_play() {
     if (!m_current)
         return;
     if (m_frame % 24 == 0)
         down();
+    m_frame++;
+    m_frame %= 24;
 }
 
 void Game::update(SDL_Event &e) {
-    if (m_state == State::GameOver)
-        return;
+    switch (m_state) {
+    case State::Start:
+        update_start(e);
+        break;
+    case State::Play:
+        update_play(e);
+        break;
+    case State::GameOver:
+        update_gameover(e);
+        break;
+    default:
+        break;
+    }
+}
+
+void Game::update_start(SDL_Event &e) {
+    if (e.type == SDL_KEYDOWN)
+        m_state = State::Play;
+}
+
+void Game::update_gameover(SDL_Event &e) {
+    if (e.type == SDL_KEYDOWN)
+        reset();
+}
+
+void Game::update_play(SDL_Event &e) {
     if (e.type == SDL_KEYDOWN) {
         switch (e.key.keysym.sym) {
         case SDLK_UP:
@@ -218,7 +279,35 @@ SDL_Color get_color(TetriminoType t) {
 }
 
 void Game::draw() const {
-    // boardの描画
+    switch (m_state) {
+    case State::Start:
+        draw_start();
+        break;
+    case State::Play:
+        draw_play();
+        break;
+    case State::GameOver:
+        draw_gameover();
+        break;
+    default:
+        draw_play();
+        break;
+    }
+}
+
+void Game::draw_start() const {
+    SDL_Rect rect = {(WIDTH - m_start_texture.w) / 2, (HEIGHT - m_start_texture.h) / 2,
+                     m_start_texture.w, m_start_texture.h};
+    SDL_RenderCopy(m_renderer, m_start_texture.texture, nullptr, &rect);
+}
+
+void Game::draw_gameover() const {
+    draw_board();
+    SDL_Rect rect = {(WIDTH - m_gameover_texture.w) / 2, (HEIGHT - m_gameover_texture.h) / 2,
+                     m_gameover_texture.w, m_gameover_texture.h};
+    SDL_RenderCopy(m_renderer, m_gameover_texture.texture, nullptr, &rect);
+}
+void Game::draw_board() const {
     for (int y = 0; y < ROW; y++) {
         for (int x = 0; x < COL; x++) {
             auto field = m_board.at(y).at(x);
@@ -230,37 +319,44 @@ void Game::draw() const {
             }
         }
     }
+}
 
+void Game::draw_current() const {
     // currentの描画とdropした時のcurrentの位置を灰色で描画
-    if (m_current && m_state == State::Play) {
-        auto tetrimino = m_current.value();
-        auto blocks = tetrimino.get_blocks();
-        int limity = limit_y();
-        for (int y = 0; y < 4; y++) {
-            for (int x = 0; x < 4; x++) {
-                if (!blocks[y][x]) {
-                    continue;
-                }
-                {
-                    // drop側
-                    int nx = tetrimino.x + x;
-                    int ny = limity + y;
-                    SDL_Rect drop_rect = {nx * GS, ny * GS, GS, GS};
-                    SDL_SetRenderDrawColor(m_renderer, 50, 50, 50, 255);
-                    SDL_RenderFillRect(m_renderer, &drop_rect);
-                }
-                {
-                    // current側
-                    int nx = tetrimino.x + x;
-                    int ny = tetrimino.y + y;
-                    SDL_Rect rect = {nx * GS, ny * GS, GS, GS};
-                    auto color = get_color(tetrimino.type);
-                    SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a);
-                    SDL_RenderFillRect(m_renderer, &rect);
-                }
+    if (!m_current)
+        return;
+    auto tetrimino = m_current.value();
+    auto blocks = tetrimino.get_blocks();
+    int limity = limit_y();
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
+            if (!blocks[y][x]) {
+                continue;
+            }
+            {
+                // drop側
+                int nx = tetrimino.x + x;
+                int ny = limity + y;
+                SDL_Rect drop_rect = {nx * GS, ny * GS, GS, GS};
+                SDL_SetRenderDrawColor(m_renderer, 50, 50, 50, 255);
+                SDL_RenderFillRect(m_renderer, &drop_rect);
+            }
+            {
+                // current側
+                int nx = tetrimino.x + x;
+                int ny = tetrimino.y + y;
+                SDL_Rect rect = {nx * GS, ny * GS, GS, GS};
+                auto color = get_color(tetrimino.type);
+                SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a);
+                SDL_RenderFillRect(m_renderer, &rect);
             }
         }
     }
+}
+
+void Game::draw_play() const {
+    draw_board();
+    draw_current();
 }
 
 bool Game::check_collision(const Tetrimino &t) const {
@@ -311,4 +407,10 @@ void Game::delete_lines() {
             }
         }
     }
+}
+
+void Game::reset() {
+    m_state = State::Play;
+    m_board = std::array<std::array<std::optional<TetriminoType>, COL>, ROW>();
+    new_tetrimino();
 }
