@@ -37,6 +37,7 @@ Game::Game() {
     m_state = State::Start;
 
     m_start_texture = make_texture("Press any key to start", {0, 0, 255, 255});
+    m_pause_texture = make_texture("Pause", {0, 0, 255, 255});
     m_gameover_texture = make_texture("GAME OVER", {255, 0, 0, 255});
 
     srand(time(nullptr));
@@ -45,6 +46,8 @@ Game::Game() {
 Game::~Game() {
     TTF_CloseFont(m_font);
     SDL_DestroyTexture(m_start_texture.texture);
+    SDL_DestroyTexture(m_pause_texture.texture);
+    SDL_DestroyTexture(m_gameover_texture.texture);
     SDL_DestroyRenderer(m_renderer);
     SDL_DestroyWindow(m_window);
 
@@ -199,6 +202,9 @@ void Game::update(SDL_Event &e) {
     case State::Play:
         update_play(e);
         break;
+    case State::Pause:
+        update_pause(e);
+        break;
     case State::GameOver:
         update_gameover(e);
         break;
@@ -208,6 +214,11 @@ void Game::update(SDL_Event &e) {
 }
 
 void Game::update_start(SDL_Event &e) {
+    if (e.type == SDL_KEYDOWN)
+        m_state = State::Play;
+}
+
+void Game::update_pause(SDL_Event &e) {
     if (e.type == SDL_KEYDOWN)
         m_state = State::Play;
 }
@@ -245,6 +256,10 @@ void Game::update_play(SDL_Event &e) {
             if (m_current) {
                 move(0, 1);
             }
+            break;
+        case SDLK_p:
+        case SDLK_ESCAPE:
+            m_state = State::Pause;
             break;
         }
     }
@@ -286,6 +301,9 @@ void Game::draw() const {
     case State::Play:
         draw_play();
         break;
+    case State::Pause:
+        draw_pause();
+        break;
     case State::GameOver:
         draw_gameover();
         break;
@@ -295,18 +313,6 @@ void Game::draw() const {
     }
 }
 
-void Game::draw_start() const {
-    SDL_Rect rect = {(WIDTH - m_start_texture.w) / 2, (HEIGHT - m_start_texture.h) / 2,
-                     m_start_texture.w, m_start_texture.h};
-    SDL_RenderCopy(m_renderer, m_start_texture.texture, nullptr, &rect);
-}
-
-void Game::draw_gameover() const {
-    draw_board();
-    SDL_Rect rect = {(WIDTH - m_gameover_texture.w) / 2, (HEIGHT - m_gameover_texture.h) / 2,
-                     m_gameover_texture.w, m_gameover_texture.h};
-    SDL_RenderCopy(m_renderer, m_gameover_texture.texture, nullptr, &rect);
-}
 void Game::draw_board() const {
     for (int y = 0; y < ROW; y++) {
         for (int x = 0; x < COL; x++) {
@@ -354,9 +360,30 @@ void Game::draw_current() const {
     }
 }
 
+void Game::draw_start() const {
+    SDL_Rect rect = {(WIDTH - m_start_texture.w) / 2, (HEIGHT - m_start_texture.h) / 2,
+                     m_start_texture.w, m_start_texture.h};
+    SDL_RenderCopy(m_renderer, m_start_texture.texture, nullptr, &rect);
+}
+
+void Game::draw_pause() const {
+    draw_board();
+    draw_current();
+    SDL_Rect rect = {(WIDTH - m_pause_texture.w) / 2, (HEIGHT - m_pause_texture.h) / 2,
+                     m_pause_texture.w, m_pause_texture.h};
+    SDL_RenderCopy(m_renderer, m_pause_texture.texture, nullptr, &rect);
+}
+
 void Game::draw_play() const {
     draw_board();
     draw_current();
+}
+
+void Game::draw_gameover() const {
+    draw_board();
+    SDL_Rect rect = {(WIDTH - m_gameover_texture.w) / 2, (HEIGHT - m_gameover_texture.h) / 2,
+                     m_gameover_texture.w, m_gameover_texture.h};
+    SDL_RenderCopy(m_renderer, m_gameover_texture.texture, nullptr, &rect);
 }
 
 bool Game::check_collision(const Tetrimino &t) const {

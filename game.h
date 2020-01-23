@@ -8,6 +8,7 @@
 enum class State {
     Start,
     Play,
+    Pause,
     GameOver,
 };
 
@@ -34,6 +35,7 @@ private:
     void update(SDL_Event &e);
     void update_start(SDL_Event &e);
     void update_play(SDL_Event &e);
+    void update_pause(SDL_Event &e);
     void update_gameover(SDL_Event &e);
 
     void draw() const;
@@ -41,6 +43,7 @@ private:
     void draw_current() const;
     void draw_start() const;
     void draw_play() const;
+    void draw_pause() const;
     void draw_gameover() const;
 
     /// 新しいテトリミノを用意。
@@ -73,6 +76,7 @@ private:
     Texture make_texture(const std::string &text, SDL_Color color);
 
     Texture m_start_texture;
+    Texture m_pause_texture;
     Texture m_gameover_texture;
 
     // 新しいテトリミノを出す位置
