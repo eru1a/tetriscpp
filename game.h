@@ -66,7 +66,7 @@ private:
     bool check_collision(const Tetrimino &t) const;
     /// ゲームオーバーかチェック
     bool check_gameover() const;
-    /// 揃った行を大きい順に返す。
+    /// 揃った行を小さい順に返す。
     std::vector<int> check_lines() const;
     /// 揃った行を削除。
     void delete_lines();

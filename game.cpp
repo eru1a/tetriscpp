@@ -406,7 +406,7 @@ bool Game::check_collision(const Tetrimino &t) const {
 
 std::vector<int> Game::check_lines() const {
     std::vector<int> result;
-    for (int y = ROW - 1; y >= 0; y--) {
+    for (int y = 0; y < ROW; y++) {
         bool f = true;
         for (int x = 0; x < COL; x++) {
             if (!m_board.at(y).at(x)) {
