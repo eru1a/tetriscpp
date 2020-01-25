@@ -8,6 +8,18 @@ const int gs = 30;
 const int width = gs * col;
 const int height = gs * row;
 
+struct Texture {
+    SDL_Texture *texture;
+    int w, h;
+};
+
+enum class GameState {
+    Start,
+    Play,
+    Pause,
+    GameOver,
+};
+
 class Game {
 public:
     Game();
@@ -17,17 +29,29 @@ public:
 private:
     SDL_Window *window;
     SDL_Renderer *renderer;
+    TTF_Font *font;
     Board board;
     Tetrimino current;
     int frame;
+    GameState state;
 
     void update();
+    void update_play();
+
     void update(SDL_Event &e);
+    void update_start(SDL_Event &e);
+    void update_play(SDL_Event &e);
+    void update_pause(SDL_Event &e);
+    void update_gameover(SDL_Event &e);
 
     void draw() const;
     void draw_board() const;
     void draw_current() const;
     void draw_current_shadow() const;
+    void draw_start() const;
+    void draw_play() const;
+    void draw_pause() const;
+    void draw_gameover() const;
 
     /// 新しいテトリミノを用意。揃った行の削除とゲームオーバーかの判定も行う。
     void new_tetrimino();

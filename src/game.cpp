@@ -41,7 +41,19 @@ SDL_Color get_color(TetriminoType t) {
     }
 }
 
-Game::Game() {
+Texture make_texture(SDL_Renderer *renderer, TTF_Font *font, const std::string &text,
+                     SDL_Color color) {
+    SDL_Surface *surface = TTF_RenderText_Solid(font, text.c_str(), color);
+    if (surface == nullptr)
+        ttf_error("start_surfaceの作成に失敗");
+    Texture texture = {SDL_CreateTextureFromSurface(renderer, surface), surface->w, surface->h};
+    if (texture.texture == nullptr)
+        sdl_error("textureの作成に失敗");
+    SDL_FreeSurface(surface);
+    return texture;
+}
+
+Game::Game() : state(GameState::Start) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_error("SDLの初期化に失敗");
     if (TTF_Init() < 0)
@@ -57,10 +69,15 @@ Game::Game() {
     if (renderer == nullptr)
         sdl_error("レンダラの初期化に失敗");
 
+    font = TTF_OpenFont("data/roboto-android/Roboto-Black.ttf", 30);
+    if (font == nullptr)
+        ttf_error("TTF_OpenFontに失敗");
+
     srand(time(nullptr));
 }
 
 Game::~Game() {
+    TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();
@@ -98,6 +115,16 @@ void Game::run() {
 }
 
 void Game::update() {
+    switch (state) {
+    case GameState::Play:
+        update_play();
+        break;
+    default:
+        break;
+    }
+}
+
+void Game::update_play() {
     frame++;
     frame %= 24;
     if (frame == 0) {
@@ -106,6 +133,29 @@ void Game::update() {
 }
 
 void Game::update(SDL_Event &e) {
+    switch (state) {
+    case GameState::Start:
+        update_start(e);
+        break;
+    case GameState::Play:
+        update_play(e);
+        break;
+    case GameState::Pause:
+        update_pause(e);
+        break;
+    case GameState::GameOver:
+        update_gameover(e);
+        break;
+    }
+}
+
+void Game::update_start(SDL_Event &e) {
+    // 何らかのキーを押したらプレイ
+    if (e.type == SDL_KEYDOWN)
+        state = GameState::Play;
+}
+
+void Game::update_play(SDL_Event &e) {
     if (e.type == SDL_KEYDOWN) {
         switch (e.key.keysym.sym) {
         case SDLK_UP:
@@ -125,11 +175,51 @@ void Game::update(SDL_Event &e) {
         case SDLK_DOWN:
             move(0, 1);
             break;
+        case SDLK_p:
+        case SDLK_ESCAPE:
+            state = GameState::Pause;
+            break;
         }
     }
 }
 
+void Game::update_pause(SDL_Event &e) {
+    // 何らかのキーを押したらプレイ
+    if (e.type == SDL_KEYDOWN)
+        state = GameState::Play;
+}
+
+void Game::update_gameover(SDL_Event &e) {
+    // 何らかのキーを押したらreset
+    if (e.type == SDL_KEYDOWN)
+        reset();
+}
+
 void Game::draw() const {
+    switch (state) {
+    case GameState::Start:
+        draw_start();
+        break;
+    case GameState::Play:
+        draw_play();
+        break;
+    case GameState::Pause:
+        draw_pause();
+        break;
+    case GameState::GameOver:
+        draw_gameover();
+        break;
+    }
+}
+
+void Game::draw_start() const {
+    Texture texture = make_texture(renderer, font, "Press any key to start", {0, 0, 255, 255});
+    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
+    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
+    SDL_DestroyTexture(texture.texture);
+}
+
+void Game::draw_play() const {
     draw_board();
     draw_current_shadow();
     draw_current();
@@ -170,12 +260,33 @@ void Game::draw_current_shadow() const {
     }
 }
 
+void Game::draw_pause() const {
+    draw_board();
+    draw_current_shadow();
+    draw_current();
+
+    Texture texture = make_texture(renderer, font, "PAUSE", {255, 255, 0, 255});
+    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
+    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
+    SDL_DestroyTexture(texture.texture);
+}
+
+void Game::draw_gameover() const {
+    draw_board();
+    draw_current();
+
+    Texture texture = make_texture(renderer, font, "GAME OVER", {255, 0, 0, 255});
+    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
+    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
+    SDL_DestroyTexture(texture.texture);
+}
+
 void Game::new_tetrimino() {
     board.delete_lines();
     TetriminoType type = static_cast<TetriminoType>(rand() % 7);
     current = Tetrimino(type);
     if (board.check_gameover(current)) {
-        reset();
+        state = GameState::GameOver;
     }
 }
 
@@ -217,4 +328,5 @@ bool Game::rotate() {
 void Game::reset() {
     board = Board();
     new_tetrimino();
+    state = GameState::Start;
 }
