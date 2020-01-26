@@ -158,22 +158,26 @@ void Game::update_start(SDL_Event &e) {
 void Game::update_play(SDL_Event &e) {
     if (e.type == SDL_KEYDOWN) {
         switch (e.key.keysym.sym) {
+        case SDLK_LEFT:
+        case SDLK_h:
+            move(-1, 0);
+            break;
+        case SDLK_RIGHT:
+        case SDLK_l:
+            move(1, 0);
+            break;
+        case SDLK_DOWN:
+        case SDLK_j:
+            move(0, 1);
+            break;
         case SDLK_UP:
+        case SDLK_k:
             if (e.key.repeat == 0)
                 rotate();
             break;
         case SDLK_SPACE:
             if (e.key.repeat == 0)
                 drop();
-            break;
-        case SDLK_LEFT:
-            move(-1, 0);
-            break;
-        case SDLK_RIGHT:
-            move(1, 0);
-            break;
-        case SDLK_DOWN:
-            move(0, 1);
             break;
         case SDLK_p:
         case SDLK_ESCAPE:
