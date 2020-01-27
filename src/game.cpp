@@ -53,6 +53,31 @@ Texture make_texture(SDL_Renderer *renderer, TTF_Font *font, const std::string &
     return texture;
 }
 
+TetriminoType random_tetrimino() {
+    return static_cast<TetriminoType>(rand() % tetrimino_type_num);
+}
+
+// Next描画用に座標を調整したテトリミノを作る。
+Tetrimino make_next_tetrimino(const TetriminoType &type) {
+    switch (type) {
+    case TetriminoType::I:
+        return Tetrimino(1, 1, type);
+    case TetriminoType::O:
+        return Tetrimino(0, 0, type);
+    case TetriminoType::S:
+        return Tetrimino(1, 0, type);
+    case TetriminoType::Z:
+        return Tetrimino(1, 0, type);
+    case TetriminoType::J:
+        return Tetrimino(1, 1, type);
+    case TetriminoType::L:
+        return Tetrimino(1, 1, type);
+    case TetriminoType::T:
+        return Tetrimino(1, 1, type);
+    }
+    assert(false);
+}
+
 Game::Game() : state(GameState::Start) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_error("SDLの初期化に失敗");
@@ -74,6 +99,9 @@ Game::Game() : state(GameState::Start) {
         ttf_error("TTF_OpenFontに失敗");
 
     srand(time(nullptr));
+
+    for (int i = 0; i < 3; i++)
+        next.push_back(random_tetrimino());
 }
 
 Game::~Game() {
@@ -227,6 +255,7 @@ void Game::draw_play() const {
     draw_board();
     draw_current_shadow();
     draw_current();
+    draw_next();
 }
 
 void Game::draw_board() const {
@@ -241,16 +270,29 @@ void Game::draw_board() const {
             }
         }
     }
+    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+    SDL_Rect rect = {0, 0, board_width, board_height};
+    SDL_RenderDrawRect(renderer, &rect);
 }
 
-void Game::draw_current() const {
-    for (auto [x, y] : current.blocks()) {
-        SDL_Rect rect = {x * gs, y * gs, gs, gs};
-        auto [r, g, b, a] = get_color(current.type());
+void Game::draw_tetrimino(const Tetrimino &t,
+                          std::optional<std::pair<int, int>> topleft = std::nullopt) const {
+    int left = 0;
+    int top = 0;
+    if (topleft) {
+        auto [l, t] = topleft.value();
+        left = l;
+        top = t;
+    }
+    for (auto [x, y] : t.blocks()) {
+        SDL_Rect rect = {left + x * gs, top + y * gs, gs, gs};
+        auto [r, g, b, a] = get_color(t.type());
         SDL_SetRenderDrawColor(renderer, r, g, b, a);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
+
+void Game::draw_current() const { draw_tetrimino(current); }
 
 void Game::draw_current_shadow() const {
     auto [x, y] = current.pos();
@@ -264,10 +306,26 @@ void Game::draw_current_shadow() const {
     }
 }
 
+void Game::draw_next() const {
+    Texture texture = make_texture(renderer, font, "Next", {0, 255, 0, 255});
+    auto [left, top] = next_text_topleft;
+    SDL_Rect rect = {left, top, texture.w, texture.h};
+    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
+    SDL_DestroyTexture(texture.texture);
+    for (std::size_t i = 0; i < next.size(); i++) {
+        draw_tetrimino(make_next_tetrimino(next[i]), next_topleft[i]);
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+        auto [left, top] = next_topleft[i];
+        SDL_Rect rect = {left, top, next_area_width, next_area_height};
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+}
+
 void Game::draw_pause() const {
     draw_board();
     draw_current_shadow();
     draw_current();
+    draw_next();
 
     Texture texture = make_texture(renderer, font, "PAUSE", {255, 255, 0, 255});
     SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
@@ -278,6 +336,7 @@ void Game::draw_pause() const {
 void Game::draw_gameover() const {
     draw_board();
     draw_current();
+    draw_next();
 
     Texture texture = make_texture(renderer, font, "GAME OVER", {255, 0, 0, 255});
     SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
@@ -287,11 +346,11 @@ void Game::draw_gameover() const {
 
 void Game::new_tetrimino() {
     board.delete_lines();
-    TetriminoType type = static_cast<TetriminoType>(rand() % 7);
-    current = Tetrimino(type);
-    if (board.check_gameover(current)) {
+    current = Tetrimino(next.front());
+    next.pop_front();
+    next.push_back(random_tetrimino());
+    if (board.check_gameover(current))
         state = GameState::GameOver;
-    }
 }
 
 void Game::set_tetrimino() {
@@ -332,5 +391,5 @@ bool Game::rotate() {
 void Game::reset() {
     board = Board();
     new_tetrimino();
-    state = GameState::Start;
+    state = GameState::Play;
 }

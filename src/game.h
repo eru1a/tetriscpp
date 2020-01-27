@@ -3,10 +3,17 @@
 #include "board.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <deque>
 
 const int gs = 30;
-const int width = gs * col;
-const int height = gs * row;
+const int board_width = gs * col;
+const int board_height = gs * row;
+const int next_area_width = gs * 4;
+const int next_area_height = gs * 2;
+const int margin = 10;
+const int font_height = 36;
+const int width = board_width + margin + next_area_width + margin;
+const int height = board_height;
 
 struct Texture {
     SDL_Texture *texture;
@@ -32,8 +39,17 @@ private:
     TTF_Font *font;
     Board board;
     Tetrimino current;
+    // queueだとiterate出来ないのでdeque
+    std::deque<TetriminoType> next;
     int frame;
     GameState state;
+
+    std::pair<int, int> next_text_topleft = {board_width + margin, 0};
+    std::vector<std::pair<int, int>> next_topleft = {
+        {board_width + margin, font_height + next_area_height * 0 + margin * 1},
+        {board_width + margin, font_height + next_area_height * 1 + margin * 2},
+        {board_width + margin, font_height + next_area_height * 2 + margin * 3},
+    };
 
     void update();
     void update_play();
@@ -46,8 +62,10 @@ private:
 
     void draw() const;
     void draw_board() const;
+    void draw_tetrimino(const Tetrimino &t, std::optional<std::pair<int, int>> topleft) const;
     void draw_current() const;
     void draw_current_shadow() const;
+    void draw_next() const;
     void draw_start() const;
     void draw_play() const;
     void draw_pause() const;

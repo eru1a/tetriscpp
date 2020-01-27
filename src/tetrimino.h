@@ -15,6 +15,8 @@ enum class TetriminoType : int {
     T,
 };
 
+const int tetrimino_type_num = 7;
+
 class Tetrimino {
 public:
     // 開始位置
