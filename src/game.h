@@ -41,15 +41,22 @@ private:
     Tetrimino current;
     // queueだとiterate出来ないのでdeque
     std::deque<TetriminoType> next;
-    int frame;
-    GameState state;
+    int frame = 0;
+    GameState state = GameState::Start;
+    int score = 0;
 
+    // 描画する文字等のtopleft
+    // viewport使ったほうがいいのかな
     std::pair<int, int> next_text_topleft = {board_width + margin, 0};
     std::vector<std::pair<int, int>> next_topleft = {
         {board_width + margin, font_height + next_area_height * 0 + margin * 1},
         {board_width + margin, font_height + next_area_height * 1 + margin * 2},
         {board_width + margin, font_height + next_area_height * 2 + margin * 3},
     };
+    std::pair<int, int> score_text_topleft = {board_width + margin,
+                                              font_height + next_area_height * 3 + margin * 4};
+    std::pair<int, int> score_topleft = {board_width + margin,
+                                         font_height * 2 + next_area_height * 3 + margin * 5};
 
     void update();
     void update_play();
@@ -66,6 +73,7 @@ private:
     void draw_current() const;
     void draw_current_shadow() const;
     void draw_next() const;
+    void draw_score() const;
     void draw_start() const;
     void draw_play() const;
     void draw_pause() const;

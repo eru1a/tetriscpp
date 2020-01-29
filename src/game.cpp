@@ -196,7 +196,9 @@ void Game::update_play(SDL_Event &e) {
             break;
         case SDLK_DOWN:
         case SDLK_j:
-            move(0, 1);
+            // 自分で落としたら+1点
+            if (move(0, 1))
+                score++;
             break;
         case SDLK_UP:
         case SDLK_k:
@@ -256,6 +258,7 @@ void Game::draw_play() const {
     draw_current_shadow();
     draw_current();
     draw_next();
+    draw_score();
 }
 
 void Game::draw_board() const {
@@ -321,11 +324,32 @@ void Game::draw_next() const {
     }
 }
 
+void Game::draw_score() const {
+    {
+        // "Score"の文字
+        Texture score_text_texture = make_texture(renderer, font, "Score", {255, 255, 0, 255});
+        auto [left, top] = score_text_topleft;
+        SDL_Rect rect{left, top, score_text_texture.w, score_text_texture.h};
+        SDL_RenderCopy(renderer, score_text_texture.texture, nullptr, &rect);
+        SDL_DestroyTexture(score_text_texture.texture);
+    }
+    {
+        // 点数側
+        Texture score_text_texture =
+            make_texture(renderer, font, std::to_string(score), {255, 255, 0, 255});
+        auto [left, top] = score_topleft;
+        SDL_Rect rect{left, top, score_text_texture.w, score_text_texture.h};
+        SDL_RenderCopy(renderer, score_text_texture.texture, nullptr, &rect);
+        SDL_DestroyTexture(score_text_texture.texture);
+    }
+}
+
 void Game::draw_pause() const {
     draw_board();
     draw_current_shadow();
     draw_current();
     draw_next();
+    draw_score();
 
     Texture texture = make_texture(renderer, font, "PAUSE", {255, 255, 0, 255});
     SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
@@ -337,6 +361,7 @@ void Game::draw_gameover() const {
     draw_board();
     draw_current();
     draw_next();
+    draw_score();
 
     Texture texture = make_texture(renderer, font, "GAME OVER", {255, 0, 0, 255});
     SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
@@ -345,6 +370,25 @@ void Game::draw_gameover() const {
 }
 
 void Game::new_tetrimino() {
+    // 消える段数に応じてスコアを更新
+    switch (board.complete_lines().size()) {
+    case 0:
+        break;
+    case 1:
+        score += 40;
+        break;
+    case 2:
+        score += 100;
+        break;
+    case 3:
+        score += 300;
+        break;
+    case 4:
+        score += 1200;
+        break;
+    default:
+        assert(false);
+    }
     board.delete_lines();
     current = Tetrimino(next.front());
     next.pop_front();
@@ -364,6 +408,9 @@ void Game::down() {
 }
 
 void Game::drop() {
+    // 落とせる数だけスコアに足す
+    int ly = board.limit_y(current);
+    score += ly;
     board.drop(current);
     new_tetrimino();
 }
