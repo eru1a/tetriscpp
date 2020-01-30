@@ -153,10 +153,20 @@ void Game::update() {
 }
 
 void Game::update_play() {
-    frame++;
-    frame %= 24;
-    if (frame == 0) {
-        down();
+    if (delete_animation) {
+        delete_animation_frame++;
+        delete_animation_frame %= 24;
+        if (delete_animation_frame == 0) {
+            delete_animation = false;
+            board.delete_lines();
+            new_tetrimino();
+        }
+    } else {
+        frame++;
+        frame %= 24;
+        if (frame == 0) {
+            down();
+        }
     }
 }
 
@@ -166,7 +176,10 @@ void Game::update(SDL_Event &e) {
         update_start(e);
         break;
     case GameState::Play:
-        update_play(e);
+        if (delete_animation)
+            update_delete_animation(e);
+        else
+            update_play(e);
         break;
     case GameState::Pause:
         update_pause(e);
@@ -181,6 +194,17 @@ void Game::update_start(SDL_Event &e) {
     // 何らかのキーを押したらプレイ
     if (e.type == SDL_KEYDOWN)
         state = GameState::Play;
+}
+
+void Game::update_delete_animation(SDL_Event &e) {
+    if (e.type == SDL_KEYDOWN) {
+        switch (e.key.keysym.sym) {
+        case SDLK_p:
+        case SDLK_ESCAPE:
+            state = GameState::Pause;
+            break;
+        }
+    }
 }
 
 void Game::update_play(SDL_Event &e) {
@@ -273,6 +297,14 @@ void Game::draw_board() const {
             }
         }
     }
+    if (delete_animation) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        for (const auto &line : board.complete_lines()) {
+            SDL_Rect rect = {0, line * gs, board_width, gs};
+            SDL_RenderFillRect(renderer, &rect);
+        }
+    }
+
     SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
     SDL_Rect rect = {0, 0, board_width, board_height};
     SDL_RenderDrawRect(renderer, &rect);
@@ -295,9 +327,15 @@ void Game::draw_tetrimino(const Tetrimino &t,
     }
 }
 
-void Game::draw_current() const { draw_tetrimino(current); }
+void Game::draw_current() const {
+    if (delete_animation)
+        return;
+    draw_tetrimino(current);
+}
 
 void Game::draw_current_shadow() const {
+    if (delete_animation)
+        return;
     auto [x, y] = current.pos();
     auto copy = current;
     int ly = board.limit_y(current);
@@ -370,8 +408,17 @@ void Game::draw_gameover() const {
 }
 
 void Game::new_tetrimino() {
+    current = Tetrimino(next.front());
+    next.pop_front();
+    next.push_back(random_tetrimino());
+    if (board.check_gameover(current))
+        state = GameState::GameOver;
+}
+
+void Game::on_tetrimino_set() {
+    size_t n = board.complete_lines().size();
     // 消える段数に応じてスコアを更新
-    switch (board.complete_lines().size()) {
+    switch (n) {
     case 0:
         break;
     case 1:
@@ -389,17 +436,16 @@ void Game::new_tetrimino() {
     default:
         assert(false);
     }
-    board.delete_lines();
-    current = Tetrimino(next.front());
-    next.pop_front();
-    next.push_back(random_tetrimino());
-    if (board.check_gameover(current))
-        state = GameState::GameOver;
+    if (n > 0) {
+        delete_animation = true;
+    } else {
+        new_tetrimino();
+    }
 }
 
 void Game::set_tetrimino() {
     board.put(current);
-    new_tetrimino();
+    on_tetrimino_set();
 }
 
 void Game::down() {
@@ -412,7 +458,7 @@ void Game::drop() {
     int ly = board.limit_y(current);
     score += ly;
     board.drop(current);
-    new_tetrimino();
+    on_tetrimino_set();
 }
 
 bool Game::move(int x, int y) {
@@ -438,5 +484,9 @@ bool Game::rotate() {
 void Game::reset() {
     board = Board();
     new_tetrimino();
+    frame = 0;
     state = GameState::Play;
+    score = 0;
+    delete_animation = false;
+    delete_animation_frame = 0;
 }

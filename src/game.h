@@ -44,6 +44,8 @@ private:
     int frame = 0;
     GameState state = GameState::Start;
     int score = 0;
+    bool delete_animation = false;
+    int delete_animation_frame = 0;
 
     // 描画する文字等のtopleft
     // viewport使ったほうがいいのかな
@@ -64,6 +66,7 @@ private:
     void update(SDL_Event &e);
     void update_start(SDL_Event &e);
     void update_play(SDL_Event &e);
+    void update_delete_animation(SDL_Event &e);
     void update_pause(SDL_Event &e);
     void update_gameover(SDL_Event &e);
 
@@ -87,6 +90,8 @@ private:
     void down();
     /// 一気に下まで落とす。
     void drop();
+    /// テトリミノを置いた時に行う処理
+    void on_tetrimino_set();
     /// テトリミノを移動させる。
     bool move(int x, int y);
     /// テトリミノを回転させる。
