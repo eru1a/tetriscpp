@@ -270,11 +270,20 @@ void Game::draw() const {
     }
 }
 
-void Game::draw_start() const {
-    Texture texture = make_texture(renderer, font, "Press any key to start", {0, 0, 255, 255});
-    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
+void Game::draw_texture(const std::string &text, const std::optional<std::pair<int, int>> &topleft,
+                        const SDL_Color &color) const {
+    Texture texture = make_texture(renderer, font, text, color);
+    // topleftがnoneなら真ん中に描画されるようにleft, topを計算する
+    auto [left, top] = topleft.has_value()
+                           ? topleft.value()
+                           : std::make_pair((width - texture.w) / 2, (height - texture.h) / 2);
+    SDL_Rect rect{left, top, texture.w, texture.h};
     SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
     SDL_DestroyTexture(texture.texture);
+}
+
+void Game::draw_start() const {
+    draw_texture("Press any key to start", std::nullopt, {0, 0, 255, 255});
 }
 
 void Game::draw_play() const {
@@ -283,6 +292,7 @@ void Game::draw_play() const {
     draw_current();
     draw_next();
     draw_score();
+    draw_num_delete();
 }
 
 void Game::draw_board() const {
@@ -348,11 +358,7 @@ void Game::draw_current_shadow() const {
 }
 
 void Game::draw_next() const {
-    Texture texture = make_texture(renderer, font, "Next", {0, 255, 0, 255});
-    auto [left, top] = next_text_topleft;
-    SDL_Rect rect = {left, top, texture.w, texture.h};
-    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
-    SDL_DestroyTexture(texture.texture);
+    draw_texture("NEXT", next_text_topleft, {0, 255, 0, 255});
     for (std::size_t i = 0; i < next.size(); i++) {
         draw_tetrimino(make_next_tetrimino(next[i]), next_topleft[i]);
         SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
@@ -363,23 +369,13 @@ void Game::draw_next() const {
 }
 
 void Game::draw_score() const {
-    {
-        // "Score"の文字
-        Texture score_text_texture = make_texture(renderer, font, "Score", {255, 255, 0, 255});
-        auto [left, top] = score_text_topleft;
-        SDL_Rect rect{left, top, score_text_texture.w, score_text_texture.h};
-        SDL_RenderCopy(renderer, score_text_texture.texture, nullptr, &rect);
-        SDL_DestroyTexture(score_text_texture.texture);
-    }
-    {
-        // 点数側
-        Texture score_text_texture =
-            make_texture(renderer, font, std::to_string(score), {255, 255, 0, 255});
-        auto [left, top] = score_topleft;
-        SDL_Rect rect{left, top, score_text_texture.w, score_text_texture.h};
-        SDL_RenderCopy(renderer, score_text_texture.texture, nullptr, &rect);
-        SDL_DestroyTexture(score_text_texture.texture);
-    }
+    draw_texture("SCORE", score_text_topleft, {255, 255, 0, 255});
+    draw_texture(std::to_string(score), score_topleft, {255, 255, 0, 255});
+}
+
+void Game::draw_num_delete() const {
+    draw_texture("DELETE", num_delete_text_topleft, {255, 0, 255, 255});
+    draw_texture(std::to_string(num_delete), num_delete_topleft, {255, 0, 255, 255});
 }
 
 void Game::draw_pause() const {
@@ -388,11 +384,8 @@ void Game::draw_pause() const {
     draw_current();
     draw_next();
     draw_score();
-
-    Texture texture = make_texture(renderer, font, "PAUSE", {255, 255, 0, 255});
-    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
-    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
-    SDL_DestroyTexture(texture.texture);
+    draw_num_delete();
+    draw_texture("PAUSE", std::nullopt, {255, 255, 0, 255});
 }
 
 void Game::draw_gameover() const {
@@ -400,11 +393,8 @@ void Game::draw_gameover() const {
     draw_current();
     draw_next();
     draw_score();
-
-    Texture texture = make_texture(renderer, font, "GAME OVER", {255, 0, 0, 255});
-    SDL_Rect rect = {(width - texture.w) / 2, (height - texture.h) / 2, texture.w, texture.h};
-    SDL_RenderCopy(renderer, texture.texture, nullptr, &rect);
-    SDL_DestroyTexture(texture.texture);
+    draw_num_delete();
+    draw_texture("GAME OVER", std::nullopt, {255, 0, 0, 255});
 }
 
 void Game::new_tetrimino() {
@@ -436,6 +426,7 @@ void Game::on_tetrimino_set() {
     default:
         assert(false);
     }
+    num_delete += n;
     if (n > 0) {
         delete_animation = true;
     } else {

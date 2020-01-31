@@ -46,6 +46,7 @@ private:
     int score = 0;
     bool delete_animation = false;
     int delete_animation_frame = 0;
+    int num_delete = 0;
 
     // 描画する文字等のtopleft
     // viewport使ったほうがいいのかな
@@ -59,6 +60,10 @@ private:
                                               font_height + next_area_height * 3 + margin * 4};
     std::pair<int, int> score_topleft = {board_width + margin,
                                          font_height * 2 + next_area_height * 3 + margin * 5};
+    std::pair<int, int> num_delete_text_topleft = {
+        board_width + margin, font_height * 3 + next_area_height * 3 + margin * 6};
+    std::pair<int, int> num_delete_topleft = {board_width + margin,
+                                              font_height * 4 + next_area_height * 3 + margin * 7};
 
     void update();
     void update_play();
@@ -71,12 +76,15 @@ private:
     void update_gameover(SDL_Event &e);
 
     void draw() const;
+    void draw_texture(const std::string &text, const std::optional<std::pair<int, int>> &topleft,
+                      const SDL_Color &color) const;
     void draw_board() const;
     void draw_tetrimino(const Tetrimino &t, std::optional<std::pair<int, int>> topleft) const;
     void draw_current() const;
     void draw_current_shadow() const;
     void draw_next() const;
     void draw_score() const;
+    void draw_num_delete() const;
     void draw_start() const;
     void draw_play() const;
     void draw_pause() const;
