@@ -1,11 +1,9 @@
 #pragma once
 
+#include "common.h"
 #include "tetrimino.h"
 #include <array>
 #include <optional>
-
-const int col = 10;
-const int row = 20;
 
 using Board_t = std::array<std::array<std::optional<TetriminoType>, col>, row>;
 

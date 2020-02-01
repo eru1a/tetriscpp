@@ -9,6 +9,7 @@ add_executable(${PROJECT_NAME}
   tetrimino.cpp
   board.cpp
   game.cpp
+  menu.cpp
 )
 
 file(COPY "${CMAKE_SOURCE_DIR}/src/data" DESTINATION ${CMAKE_BINARY_DIR}/src)

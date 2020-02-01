@@ -1,24 +1,11 @@
 #pragma once
 
 #include "board.h"
+#include "common.h"
+#include "menu.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <deque>
-
-const int gs = 30;
-const int board_width = gs * col;
-const int board_height = gs * row;
-const int next_area_width = gs * 4;
-const int next_area_height = gs * 2;
-const int margin = 10;
-const int font_height = 36;
-const int width = board_width + margin + next_area_width + margin;
-const int height = board_height;
-
-struct Texture {
-    SDL_Texture *texture;
-    int w, h;
-};
 
 enum class GameState {
     Start,
@@ -37,6 +24,7 @@ private:
     SDL_Window *window;
     SDL_Renderer *renderer;
     TTF_Font *font;
+    TTF_Font *big_font;
     Board board;
     Tetrimino current;
     // queueだとiterate出来ないのでdeque
@@ -47,6 +35,21 @@ private:
     bool delete_animation = false;
     int delete_animation_frame = 0;
     int num_delete = 0;
+    bool quit = false;
+
+    Menu start_menu = Menu("START", {
+                                        {"Play", [this]() { state = GameState::Play; }},
+                                        {"Exit", [this]() { quit = true; }},
+                                    });
+    Menu pause_menu = Menu("PAUSE", {
+                                        {"Play", [this]() { state = GameState::Play; }},
+                                        {"Restart", [this]() { reset(); }},
+                                        {"Exit", [this]() { quit = true; }},
+                                    });
+    Menu gameover_menu = Menu("GAME OVER", {
+                                               {"Play", [this]() { reset(); }},
+                                               {"Exit", [this]() { quit = true; }},
+                                           });
 
     // 描画する文字等のtopleft
     // viewport使ったほうがいいのかな
@@ -76,8 +79,6 @@ private:
     void update_gameover(SDL_Event &e);
 
     void draw() const;
-    void draw_texture(const std::string &text, const std::optional<std::pair<int, int>> &topleft,
-                      const SDL_Color &color) const;
     void draw_board() const;
     void draw_tetrimino(const Tetrimino &t, std::optional<std::pair<int, int>> topleft) const;
     void draw_current() const;
